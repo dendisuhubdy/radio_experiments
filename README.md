@@ -16,6 +16,7 @@ In this Experiment, we try to implementation secure communication chat using 2 e
 - openssl
 - java
 - netbeans
+- portaudio19-dev
 
 ## Contents of each folder
 
