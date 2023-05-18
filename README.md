@@ -17,6 +17,8 @@ In this Experiment, we try to implementation secure communication chat using 2 e
 - java
 - netbeans
 - portaudio19-dev
+- lxterminal
+- xterm
 
 ## Contents of each folder
 
