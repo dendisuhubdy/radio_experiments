@@ -27,4 +27,4 @@ In this Experiment, we try to implementation secure communication chat using 2 e
 - APP (compiled java app, just run ```java -jar SRC.jar``` to run the application)
 - PoC (some script Prove of Concept)
 
-## [Read Step-by-step](https://github.com/dendisuhubdy/radio_experiments/wiki)
+## [Read Documentation](https://github.com/dendisuhubdy/radio_experiments/wiki)
