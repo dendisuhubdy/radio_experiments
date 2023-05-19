@@ -1,5 +1,5 @@
 # Secure Radio Chat
-
+![alt text](https://github.com/dendisuhubdy/radio_experiments/blob/main/APP/screen.png)
 In this Experiment, we try to implementation secure communication chat using 2 entity, each entitiy using BladeRF SDR.
 
 ## Hardware Requirement
