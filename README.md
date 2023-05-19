@@ -9,9 +9,9 @@ In this Experiment, we try to implementation secure communication chat using 2 e
 
 ## Software Requirement
 
-- Python3.8.10
+- Python3.11.3
 - Python Audio Modem (AMODEM)
-- gnuradio-companion 3.8.1
+- gnuradio-companion 3.10.6.0
 - pavucontrol
 - openssl
 - java
