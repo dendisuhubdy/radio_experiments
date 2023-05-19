@@ -8,50 +8,51 @@
 # Title: bladerf duplex
 # Author: YD1RUH
 # Copyright: GNU
-# GNU Radio version: 3.8.1.0
+# GNU Radio version: 3.10.6.0
 
-from distutils.version import StrictVersion
-
-if __name__ == '__main__':
-    import ctypes
-    import sys
-    if sys.platform.startswith('linux'):
-        try:
-            x11 = ctypes.cdll.LoadLibrary('libX11.so')
-            x11.XInitThreads()
-        except:
-            print("Warning: failed to XInitThreads()")
-
+from packaging.version import Version as StrictVersion
 from PyQt5 import Qt
 from gnuradio import qtgui
-from gnuradio.filter import firdes
-import sip
 from gnuradio import analog
 from gnuradio import audio
 from gnuradio import blocks
 from gnuradio import filter
+from gnuradio.filter import firdes
 from gnuradio import gr
+from gnuradio.fft import window
 import sys
 import signal
+from PyQt5 import Qt
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
 from gnuradio.qtgui import Range, RangeWidget
+from PyQt5 import QtCore
 import osmosdr
 import time
-from gnuradio import qtgui
+import sip
+import argparse
 
+parser = argparse.ArgumentParser(description='Input TX and RX frequency bladerf')
+parser.add_argument('TX', type=int, help='frequency for transmit')
+parser.add_argument('RX', type=int, help='frequency for receive')
+args = parser.parse_args()
+
+freq_tx = args.TX
+freq_rx = args.RX
+print(args.TX)
+print(args.RX)
 class Blade_duplex(gr.top_block, Qt.QWidget):
 
     def __init__(self):
-        gr.top_block.__init__(self, "bladerf duplex")
+        gr.top_block.__init__(self, "bladerf duplex", catch_exceptions=True)
         Qt.QWidget.__init__(self)
         self.setWindowTitle("bladerf duplex")
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
-        except:
-            pass
+        except BaseException as exc:
+            print(f"Qt GUI: Could not set Icon: {str(exc)}", file=sys.stderr)
         self.top_scroll_layout = Qt.QVBoxLayout()
         self.setLayout(self.top_scroll_layout)
         self.top_scroll = Qt.QScrollArea()
@@ -71,36 +72,37 @@ class Blade_duplex(gr.top_block, Qt.QWidget):
                 self.restoreGeometry(self.settings.value("geometry").toByteArray())
             else:
                 self.restoreGeometry(self.settings.value("geometry"))
-        except:
-            pass
+        except BaseException as exc:
+            print(f"Qt GUI: Could not restore geometry: {str(exc)}", file=sys.stderr)
 
         ##################################################
         # Variables
         ##################################################
         self.tx_gain = tx_gain = 3
-        self.sql = sql = -20
+        self.sql = sql = (-20)
         self.samp_rate = samp_rate = 44100
         self.rx_gain = rx_gain = 0.3
 
         ##################################################
         # Blocks
         ##################################################
+
         self._tx_gain_range = Range(1, 10, 1, 3, 200)
-        self._tx_gain_win = RangeWidget(self._tx_gain_range, self.set_tx_gain, 'tx gain', "slider", int)
+        self._tx_gain_win = RangeWidget(self._tx_gain_range, self.set_tx_gain, "tx gain", "slider", int, QtCore.Qt.Horizontal)
         self.top_grid_layout.addWidget(self._tx_gain_win, 0, 1, 1, 1)
         for r in range(0, 1):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(1, 2):
             self.top_grid_layout.setColumnStretch(c, 1)
-        self._sql_range = Range(-50, 50, 1, -20, 200)
-        self._sql_win = RangeWidget(self._sql_range, self.set_sql, 'Squelch', "slider", int)
+        self._sql_range = Range((-50), 50, 1, (-20), 200)
+        self._sql_win = RangeWidget(self._sql_range, self.set_sql, "Squelch", "slider", int, QtCore.Qt.Horizontal)
         self.top_grid_layout.addWidget(self._sql_win, 0, 0, 2, 1)
         for r in range(0, 2):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(0, 1):
             self.top_grid_layout.setColumnStretch(c, 1)
         self._rx_gain_range = Range(0.0, 1, 0.1, 0.3, 200)
-        self._rx_gain_win = RangeWidget(self._rx_gain_range, self.set_rx_gain, 'rx gain', "slider", float)
+        self._rx_gain_win = RangeWidget(self._rx_gain_range, self.set_rx_gain, "rx gain", "slider", float, QtCore.Qt.Horizontal)
         self.top_grid_layout.addWidget(self._rx_gain_win, 1, 1, 1, 1)
         for r in range(1, 2):
             self.top_grid_layout.setRowStretch(r, 1)
@@ -109,20 +111,21 @@ class Blade_duplex(gr.top_block, Qt.QWidget):
         self.rational_resampler_xxx_1 = filter.rational_resampler_ccc(
                 interpolation=1,
                 decimation=5,
-                taps=None,
-                fractional_bw=None)
+                taps=[],
+                fractional_bw=0)
         self.rational_resampler_xxx_0 = filter.rational_resampler_ccc(
                 interpolation=2048000,
-                decimation=samp_rate*2,
-                taps=None,
-                fractional_bw=None)
+                decimation=(samp_rate*2),
+                taps=[],
+                fractional_bw=0)
         self.qtgui_waterfall_sink_x_0 = qtgui.waterfall_sink_c(
             1024, #size
-            firdes.WIN_BLACKMAN_hARRIS, #wintype
+            window.WIN_BLACKMAN_hARRIS, #wintype
             0, #fc
             samp_rate, #bw
             "", #name
-            1 #number of inputs
+            1, #number of inputs
+            None # parent
         )
         self.qtgui_waterfall_sink_x_0.set_update_time(0.1)
         self.qtgui_waterfall_sink_x_0.enable_grid(False)
@@ -148,7 +151,8 @@ class Blade_duplex(gr.top_block, Qt.QWidget):
 
         self.qtgui_waterfall_sink_x_0.set_intensity_range(-140, 10)
 
-        self._qtgui_waterfall_sink_x_0_win = sip.wrapinstance(self.qtgui_waterfall_sink_x_0.pyqwidget(), Qt.QWidget)
+        self._qtgui_waterfall_sink_x_0_win = sip.wrapinstance(self.qtgui_waterfall_sink_x_0.qwidget(), Qt.QWidget)
+
         self.top_grid_layout.addWidget(self._qtgui_waterfall_sink_x_0_win, 2, 0, 5, 1)
         for r in range(2, 7):
             self.top_grid_layout.setRowStretch(r, 1)
@@ -156,14 +160,15 @@ class Blade_duplex(gr.top_block, Qt.QWidget):
             self.top_grid_layout.setColumnStretch(c, 1)
         self.qtgui_freq_sink_x_0 = qtgui.freq_sink_c(
             1024, #size
-            firdes.WIN_BLACKMAN_hARRIS, #wintype
+            window.WIN_BLACKMAN_hARRIS, #wintype
             0, #fc
             samp_rate, #bw
             "", #name
-            1
+            1,
+            None # parent
         )
         self.qtgui_freq_sink_x_0.set_update_time(0.10)
-        self.qtgui_freq_sink_x_0.set_y_axis(-140, 10)
+        self.qtgui_freq_sink_x_0.set_y_axis((-140), 10)
         self.qtgui_freq_sink_x_0.set_y_label('Relative Gain', 'dB')
         self.qtgui_freq_sink_x_0.set_trigger_mode(qtgui.TRIG_MODE_FREE, 0.0, 0, "")
         self.qtgui_freq_sink_x_0.enable_autoscale(False)
@@ -171,6 +176,7 @@ class Blade_duplex(gr.top_block, Qt.QWidget):
         self.qtgui_freq_sink_x_0.set_fft_average(1.0)
         self.qtgui_freq_sink_x_0.enable_axis_labels(False)
         self.qtgui_freq_sink_x_0.enable_control_panel(False)
+        self.qtgui_freq_sink_x_0.set_fft_window_normalized(False)
 
         self.qtgui_freq_sink_x_0.disable_legend()
 
@@ -193,7 +199,7 @@ class Blade_duplex(gr.top_block, Qt.QWidget):
             self.qtgui_freq_sink_x_0.set_line_color(i, colors[i])
             self.qtgui_freq_sink_x_0.set_line_alpha(i, alphas[i])
 
-        self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.pyqwidget(), Qt.QWidget)
+        self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.qwidget(), Qt.QWidget)
         self.top_grid_layout.addWidget(self._qtgui_freq_sink_x_0_win, 2, 1, 5, 1)
         for r in range(2, 7):
             self.top_grid_layout.setRowStretch(r, 1)
@@ -204,8 +210,11 @@ class Blade_duplex(gr.top_block, Qt.QWidget):
         )
         self.osmosdr_source_0.set_time_unknown_pps(osmosdr.time_spec_t())
         self.osmosdr_source_0.set_sample_rate(2048000)
-        self.osmosdr_source_0.set_center_freq(450000000, 0)
+        self.osmosdr_source_0.set_center_freq(args.RX, 0)
         self.osmosdr_source_0.set_freq_corr(0, 0)
+        self.osmosdr_source_0.set_dc_offset_mode(0, 0)
+        self.osmosdr_source_0.set_iq_balance_mode(0, 0)
+        self.osmosdr_source_0.set_gain_mode(False, 0)
         self.osmosdr_source_0.set_gain(50, 0)
         self.osmosdr_source_0.set_if_gain(20, 0)
         self.osmosdr_source_0.set_bb_gain(20, 0)
@@ -216,7 +225,7 @@ class Blade_duplex(gr.top_block, Qt.QWidget):
         )
         self.osmosdr_sink_0.set_time_unknown_pps(osmosdr.time_spec_t())
         self.osmosdr_sink_0.set_sample_rate(2048000)
-        self.osmosdr_sink_0.set_center_freq(430000000, 0)
+        self.osmosdr_sink_0.set_center_freq(args.TX, 0)
         self.osmosdr_sink_0.set_freq_corr(0, 0)
         self.osmosdr_sink_0.set_gain(50, 0)
         self.osmosdr_sink_0.set_if_gain(20, 0)
@@ -230,10 +239,10 @@ class Blade_duplex(gr.top_block, Qt.QWidget):
         self.analog_simple_squelch_cc_0 = analog.simple_squelch_cc(sql, 1)
         self.analog_nbfm_tx_0 = analog.nbfm_tx(
         	audio_rate=samp_rate,
-        	quad_rate=samp_rate*2,
-        	tau=75e-6,
+        	quad_rate=(samp_rate*2),
+        	tau=(75e-6),
         	max_dev=5e3,
-        	fh=-1.0,
+        	fh=(-1.0),
                 )
         self.analog_fm_demod_cf_0 = analog.fm_demod_cf(
         	channel_rate=384000,
@@ -242,9 +251,8 @@ class Blade_duplex(gr.top_block, Qt.QWidget):
         	audio_pass=16000,
         	audio_stop=20000,
         	gain=10,
-        	tau=75e-6,
+        	tau=(75e-6),
         )
-
 
 
         ##################################################
@@ -262,9 +270,13 @@ class Blade_duplex(gr.top_block, Qt.QWidget):
         self.connect((self.rational_resampler_xxx_1, 0), (self.qtgui_freq_sink_x_0, 0))
         self.connect((self.rational_resampler_xxx_1, 0), (self.qtgui_waterfall_sink_x_0, 0))
 
+
     def closeEvent(self, event):
         self.settings = Qt.QSettings("GNU Radio", "Blade_duplex")
         self.settings.setValue("geometry", self.saveGeometry())
+        self.stop()
+        self.wait()
+
         event.accept()
 
     def get_tx_gain(self):
@@ -298,6 +310,7 @@ class Blade_duplex(gr.top_block, Qt.QWidget):
 
 
 
+
 def main(top_block_cls=Blade_duplex, options=None):
 
     if StrictVersion("4.5.0") <= StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
@@ -306,10 +319,15 @@ def main(top_block_cls=Blade_duplex, options=None):
     qapp = Qt.QApplication(sys.argv)
 
     tb = top_block_cls()
+
     tb.start()
+
     tb.show()
 
     def sig_handler(sig=None, frame=None):
+        tb.stop()
+        tb.wait()
+
         Qt.QApplication.quit()
 
     signal.signal(signal.SIGINT, sig_handler)
@@ -319,12 +337,7 @@ def main(top_block_cls=Blade_duplex, options=None):
     timer.start(500)
     timer.timeout.connect(lambda: None)
 
-    def quitting():
-        tb.stop()
-        tb.wait()
-    qapp.aboutToQuit.connect(quitting)
     qapp.exec_()
-
 
 if __name__ == '__main__':
     main()
